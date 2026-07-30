@@ -1,0 +1,85 @@
+study:
+  name: "SpecStream H200 pilot"
+  frozen_at_utc: "2026-07-30T12:00:00Z"
+  hypothesis: >-
+    At equal speculative host-to-device byte budgets, a learned next-layer
+    predictor optimized for deadline-weighted stall utility lowers held-out
+    exposed expert-fetch stall relative to popularity and training-free
+    router-score baselines.
+  estimand_primary: "mean exposed expert-fetch stall milliseconds per decoded token"
+  estimands_secondary:
+    - "expert recall at fixed byte budget"
+    - "useful prefetched bytes / all speculative bytes"
+    - "deadline hit rate"
+    - "p50 and p95 simulated inter-token latency"
+  exactness: >-
+    The base router and expert computations are unchanged. Missing weights are
+    fetched on demand, so prediction affects timing only.
+
+hardware:
+  gpu: "NVIDIA H200, one GPU"
+  host_to_device_path: "pinned CPU memory to HBM over PCIe"
+
+model:
+  id: "Qwen/Qwen3.6-35B-A3B"
+  revision: "resolve and record before tracing"
+  dtype: "bfloat16"
+  expected_layers: 40
+  expected_experts: 256
+  expected_top_k: 8
+  expected_hidden_size: 2048
+  expected_moe_intermediate_size: 512
+
+data:
+  seed: 260724787
+  sources:
+    - "openai/gsm8k main"
+    - "openai/openai_humaneval"
+  split_unit: "prompt/problem id; never individual tokens"
+  train_fraction: 0.60
+  validation_fraction: 0.20
+  test_fraction: 0.20
+  maximum_prompt_tokens: 1024
+  target_trace_tokens: 12000
+  minimum_test_trace_tokens: 2000
+
+predictor:
+  shared_across_layers: true
+  hidden_width: 256
+  layer_embedding_width: 32
+  training_epochs: 8
+  early_stopping_metric: "validation exposed stall at fixed byte budget"
+  losses:
+    - "multi-label binary cross entropy"
+    - "deadline-weighted multi-label binary cross entropy"
+
+policies:
+  - "random"
+  - "global training-set popularity"
+  - "LRU cache only"
+  - "current-router-score top budget (training-free)"
+  - "learned BCE predictor"
+  - "learned deadline-weighted predictor"
+  - "oracle next-layer route upper bound"
+
+budgets:
+  speculative_experts_per_layer: [0, 2, 4, 8, 12, 16]
+  gpu_cache_experts_per_layer: [8, 16, 32, 64]
+
+statistics:
+  confidence_level: 0.95
+  bootstrap_resamples: 2000
+  bootstrap_unit: "prompt/problem id"
+  paired_comparisons: true
+  report_all_prespecified_budgets: true
+
+claims:
+  allowed:
+    - "measured H200 microbenchmark"
+    - "held-out trace result"
+    - "trace-driven simulation"
+  forbidden_without_direct_measurement:
+    - "end-to-end serving speedup"
+    - "production throughput improvement"
+    - "Kimi K3 generalization"
+
