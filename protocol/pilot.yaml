@@ -29,6 +29,14 @@ model:
   expected_top_k: 8
   expected_hidden_size: 2048
   expected_moe_intermediate_size: 512
+  secondary_validation_model:
+    id: "allenai/OLMoE-1B-7B-0924-Instruct"
+    revision: "7f1c97f440f06ce36705e4f2b843edb5925f4498"
+    purpose: "pipeline validation and cross-architecture secondary experiment"
+    expected_layers: 16
+    expected_experts: 64
+    expected_top_k: 8
+    expected_hidden_size: 2048
 
 data:
   seed: 260724787
@@ -82,3 +90,12 @@ claims:
     - "end-to-end serving speedup"
     - "production throughput improvement"
     - "Kimi K3 generalization"
+
+amendments:
+  - at_utc: "2026-07-30T11:35:24Z"
+    before_results: true
+    change: >-
+      Add OLMoE-1B-7B-0924-Instruct as a secondary model so the full pipeline
+      can be validated while Qwen downloads. Qwen remains the primary model;
+      every result must identify the model and no pooling across architectures
+      is allowed.

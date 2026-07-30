@@ -1,9 +1,10 @@
 --extra-index-url https://download.pytorch.org/whl/cu128
 torch==2.9.1
 transformers==5.14.1
-huggingface_hub[hf_xet]==0.34.4
-datasets==4.3.0
-safetensors==0.6.2
+huggingface_hub[hf_xet]==1.25.1
+datasets==4.8.4
+safetensors==0.8.0
+accelerate==1.14.0
 numpy==2.2.6
 scipy==1.15.3
 pandas==2.3.3
