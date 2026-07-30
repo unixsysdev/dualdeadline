@@ -3,6 +3,15 @@
 [![Build paper](https://github.com/unixsysdev/dualdeadline/actions/workflows/paper.yml/badge.svg)](https://github.com/unixsysdev/dualdeadline/actions/workflows/paper.yml)
 [![Paper on ResearchGate](https://img.shields.io/badge/paper-ResearchGate-00CCBB)](https://www.researchgate.net/publication/411009097_DualDeadline_Component-Staged_Expert_Prefetching_for_Exact_Offloaded_Mixture-of-Experts_Inference)
 
+> [!TIP]
+> **End-to-end integration:** DualDeadline is implemented in llama.cpp's
+> CUDA/HIP backend on the
+> [`llama-dualdeadline` branch](https://github.com/unixsysdev/llama-turboquant/tree/llama-dualdeadline).
+> In a real decode loop on Qwen3.6-35B-A3B (Strix Halo, ROCm), the staged
+> schedule beats a monolithic single-deadline baseline by 3–5% tg64 at
+> identical copies, cache, and kernels, and 3,120 intercepted expert matmuls
+> validate bitwise against the standard execution path.
+
 DualDeadline is a reproducible study of component-staged expert prefetching for
 exact, offloaded mixture-of-experts inference. It asks whether a gated expert
 must have one transfer deadline.
