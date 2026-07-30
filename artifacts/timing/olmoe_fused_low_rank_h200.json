@@ -1,0 +1,51 @@
+{
+  "batch_size": 1,
+  "captured_at_utc": "2026-07-30T12:38:37.328608+00:00",
+  "correctness": {
+    "factorized_torch": {
+      "max_abs_error": 0.0,
+      "root_mean_square_error": 0.0
+    },
+    "materialized_torch": {
+      "max_abs_error": 2.8312206268310547e-07,
+      "root_mean_square_error": 8.936087425581718e-08
+    },
+    "materialized_triton": {
+      "max_abs_error": 2.086162567138672e-07,
+      "root_mean_square_error": 8.432713372030776e-08
+    }
+  },
+  "device": "NVIDIA H200",
+  "dtype": "float32",
+  "factorized_parameters": 540672,
+  "hidden_size": 2048,
+  "materialized_parameters": 131072,
+  "num_experts": 64,
+  "timings": {
+    "factorized_torch": {
+      "max_ms": 0.058720000088214874,
+      "mean_ms": 0.03905040002241731,
+      "min_ms": 0.03721600025892258,
+      "p50_ms": 0.0387520007789135,
+      "p95_ms": 0.041760001331567764,
+      "samples": 1000
+    },
+    "materialized_torch": {
+      "max_ms": 0.03308799862861633,
+      "mean_ms": 0.021330591963604092,
+      "min_ms": 0.020128000527620316,
+      "p50_ms": 0.021183999255299568,
+      "p95_ms": 0.02195199951529503,
+      "samples": 1000
+    },
+    "materialized_triton": {
+      "max_ms": 0.1042879968881607,
+      "mean_ms": 0.0308694720081985,
+      "min_ms": 0.02812799997627735,
+      "p50_ms": 0.030559999868273735,
+      "p95_ms": 0.03324799984693527,
+      "samples": 1000
+    }
+  },
+  "width": 256
+}

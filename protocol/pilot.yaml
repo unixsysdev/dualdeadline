@@ -106,7 +106,16 @@ amendments:
       After the first OLMoE held-out predictor and simulator results, add full
       detached router logits to a new trace pass so a paper-style shared
       low-rank KL adapter can be evaluated fairly. Also add predictor-width
-      and same-layer pre-attention horizon controls. Keep the original
+      and same-layer pre-attention horizon controls, plus two training-seed
+      robustness replications. Keep the original
       next-layer uniform-BCE versus deadline-weighted-BCE comparison as the
       preregistered predictor analysis, and label all added controls
       exploratory.
+  - at_utc: "2026-07-30T12:42:00Z"
+    before_results: false
+    classification: "exploratory disjoint replication"
+    change: >-
+      Add a 300-prompt OLMoE replication corpus (200 GSM8K, 100 HumanEval)
+      with no prompt IDs reused from the preregistered pilot and a new corpus
+      seed. Preserve prompt-level 60/20/20 splitting, the frozen model, trace
+      semantics, predictor hyperparameters, timing inputs, and bootstrap unit.

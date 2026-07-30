@@ -16,27 +16,41 @@ def stable_id(source: str, key: str) -> str:
     return hashlib.sha256(f"{source}\0{key}".encode()).hexdigest()[:20]
 
 
-def collect(seed: int, gsm8k_count: int, humaneval_count: int) -> list[dict]:
+def collect(
+    seed: int,
+    gsm8k_count: int,
+    humaneval_count: int,
+    excluded_ids: set[str] | None = None,
+) -> list[dict]:
     rng = random.Random(seed)
+    excluded_ids = excluded_ids or set()
     gsm8k = list(load_dataset("openai/gsm8k", "main", split="train"))
     humaneval = list(load_dataset("openai/openai_humaneval", split="test"))
     rng.shuffle(gsm8k)
     rng.shuffle(humaneval)
 
     records: list[dict] = []
-    for row in gsm8k[:gsm8k_count]:
+    for row in gsm8k:
+        record_id = stable_id("gsm8k", row["question"])
+        if record_id in excluded_ids:
+            continue
         records.append(
             {
-                "id": stable_id("gsm8k", row["question"]),
+                "id": record_id,
                 "source": "gsm8k",
                 "user": row["question"],
                 "assistant": row["answer"],
             }
         )
-    for row in humaneval[:humaneval_count]:
+        if sum(record["source"] == "gsm8k" for record in records) >= gsm8k_count:
+            break
+    for row in humaneval:
+        record_id = stable_id("humaneval", row["task_id"])
+        if record_id in excluded_ids:
+            continue
         records.append(
             {
-                "id": stable_id("humaneval", row["task_id"]),
+                "id": record_id,
                 "source": "humaneval",
                 "user": (
                     "Complete the following Python function. Return only the completed code.\n\n"
@@ -45,6 +59,11 @@ def collect(seed: int, gsm8k_count: int, humaneval_count: int) -> list[dict]:
                 "assistant": row["prompt"] + row["canonical_solution"],
             }
         )
+        if (
+            sum(record["source"] == "humaneval" for record in records)
+            >= humaneval_count
+        ):
+            break
 
     rng.shuffle(records)
     train_end = round(0.60 * len(records))
@@ -66,9 +85,25 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=260724787)
     parser.add_argument("--gsm8k-count", type=int, default=80)
     parser.add_argument("--humaneval-count", type=int, default=40)
+    parser.add_argument(
+        "--exclude-corpus",
+        type=Path,
+        help="Optional JSONL corpus whose prompt IDs must not be reused.",
+    )
     args = parser.parse_args()
 
-    records = collect(args.seed, args.gsm8k_count, args.humaneval_count)
+    excluded_ids = set()
+    if args.exclude_corpus:
+        excluded_ids = {
+            json.loads(line)["id"]
+            for line in args.exclude_corpus.read_text().splitlines()
+        }
+    records = collect(
+        args.seed,
+        args.gsm8k_count,
+        args.humaneval_count,
+        excluded_ids,
+    )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with args.output.open("x") as handle:
         for row in records:
@@ -78,6 +113,7 @@ def main() -> None:
         {
             "captured_at_utc": utc_now(),
             "seed": args.seed,
+            "excluded_prompt_count": len(excluded_ids),
             "counts": {
                 split: sum(row["split"] == split for row in records)
                 for split in ("train", "validation", "test")
@@ -94,4 +130,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
