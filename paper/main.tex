@@ -39,7 +39,7 @@ NVIDIA H200.  A preregistered 120-prompt pilot reaches 45.23\% held-out
 expert recall with four candidates, versus 26.74\% for training-set
 popularity; a prompt-disjoint 300-prompt replication reaches 46.63\%.
 At an equal four-expert byte budget, trace replay estimates
-$1.223\ms$ exposed stall for monolithic prefetch and $1.100\ms$ for
+$1.223\ms$ exposed stall for monolithic prefetch and $1.106\ms$ for
 component staging.  A real CUDA-stream microbenchmark with eight OLMoE
 experts reduces block latency from $2.193\ms$ to $1.939\ms$ without numerical
 change.  Benefits persist under prompt-cold LRU caches from 8 to 64 experts
@@ -82,8 +82,8 @@ Our contributions are:
   \item a preregistered held-out study, a prompt-disjoint replication, cache
   sensitivity, and a real-stream overlap microbenchmark on an H200; and
   \item bounded forward-pass optimization experiments, including algebraic
-  low-rank materialization, CUDA Graphs, \texttt{torch.compile}, and a custom
-  Triton GEMV, with negative results reported.
+  low-rank materialization, CUDA Graphs, \texttt{torch.compile}, and custom
+  Triton kernels, with both positive and negative results reported.
 \end{itemize}
 
 \section{Background and Related Work}
@@ -217,9 +217,9 @@ Pinned-copy p50 times are 0.159\,ms for an 8\,MiB gate/up component,
 0.083\,ms for a 4\,MiB down component, and 0.234\,ms for a 12\,MiB full
 expert.  Eight experts' gate/up and down arithmetic take 0.257\,ms and
 0.128\,ms, respectively.  The next-layer issue-to-router window is
-0.81--0.89\,ms before predictor cost; the primary predictor costs 0.092\,ms.
-Thus four gate/up transfers are feasible on 14 of 15 target layers and five
-on one layer.
+0.81--0.89\,ms before predictor cost; the primary predictor costs 0.102\,ms
+including the bfloat16-to-float32 input cast.  Thus four gate/up transfers are
+feasible on all 15 target layers.
 
 \begin{figure}[t]
 \centering
@@ -239,8 +239,10 @@ to resident execution.  Repeating the full-transfer comparison independently
 on all 16 layers gives a median 2.192\,ms for monolithic loading and
 1.938\,ms for staging, a median saving of 0.254\,ms (11.6\%); the
 layerwise saving ranges from 0.247 to 0.390\,ms, with zero numerical error.
-At layer 0, varying routed top-$k$ from 1, 2, 4, to 8 gives absolute staging
-savings of 0.063, 0.061, 0.122, and 0.254\,ms, respectively.
+Nine independent repeats on layers 0, 7, and 15 give a 0.253\,ms mean saving
+with 0.0049\,ms sample standard deviation.  At layer 0, varying routed top-$k$
+from 1, 2, 4, to 8 gives absolute savings of 0.063, 0.061, 0.122, and
+0.254\,ms.
 
 \subsection{Trace-driven stall and cache sensitivity}
 \begin{figure}[t]
@@ -252,12 +254,12 @@ savings of 0.063, 0.061, 0.122, and 0.254\,ms, respectively.
 \end{figure}
 
 At four full-expert byte equivalents, monolithic replay exposes
-1.223\,ms per layer-token and staging exposes 1.100\,ms; the paired difference
-is -0.123\,ms (95\% CI [-0.125,-0.122]).  The disjoint replication gives
-1.207\,ms and 1.081\,ms, a -0.126\,ms difference
-([-0.1265,-0.1252]).  Larger byte budgets do not help because the measured
+1.223\,ms per layer-token and staging exposes 1.106\,ms; the paired difference
+is -0.117\,ms (95\% CI [-0.118,-0.115]).  The disjoint replication gives
+1.207\,ms and 1.089\,ms, a -0.118\,ms difference
+([-0.1187,-0.1176]).  Larger byte budgets do not help because the measured
 deadline, rather than capacity, is binding.  Replacing the mean-copy fit with
-a p95-copy fit preserves a -0.112\,ms staging advantage.
+a p95-copy fit increases the staging advantage to -0.225\,ms.
 
 \begin{figure}[t]
 \centering
@@ -268,9 +270,9 @@ a p95-copy fit preserves a -0.112\,ms staging advantage.
 
 The primary conformant checkpoint shows that staged benefit persists from 8
 to 64 cached experts per layer: at capacity 8, exposed stall is 0.547\,ms
-monolithic and 0.428\,ms staged; at capacity 64 it is 0.055\,ms and
+monolithic and 0.432\,ms staged; at capacity 64 it is 0.055\,ms and
 0.040\,ms.  Intermediate capacities 16 and 32 give
-0.335/0.242\,ms and 0.139/0.092\,ms, respectively.
+0.335/0.245\,ms and 0.139/0.093\,ms, respectively.
 
 \subsection{Predictor and forward-pass ablations}
 \begin{table}[t]
@@ -296,34 +298,39 @@ Shared low-rank, BCE & 540,672 & 35.53\\
 Deadline-weighted BCE is effectively tied with and slightly below uniform BCE
 (44.65\% versus 44.67\% R@4 in the direct-embedding control), so we retain the
 simpler loss.  Across the primary conformant checkpoint and two additional
-training seeds, pilot R@4 is 45.69\% with a 0.40-point sample standard
-deviation; the corresponding disjoint-replication result is 46.92\% with a
-0.25-point standard deviation.
+training seeds, pilot R@4 is 45.20\% with a 0.03-point sample standard
+deviation; the corresponding disjoint-replication result is 46.60\% with a
+0.03-point standard deviation.
 
 For the linear low-rank control, the two matrices can be multiplied once after
 training.  This exact materialization reduces batch-1 p50 from 0.0388\,ms to
 0.0212\,ms.  A tuned custom Triton GEMV reaches 0.0273\,ms and is faster than
 the factorized adapter but slower than PyTorch's materialized GEMV; maximum
-error is below $3\times10^{-7}$.  On the primary conformant layer-aware model,
-\texttt{torch.compile} is slower in an isolated run (0.140\,ms versus
-0.092\,ms eager).  In contrast, a static CUDA Graph costs 0.0220\,ms to replay
-and 0.0325\,ms including device-side input copies, versus 0.0938\,ms eager,
-with identical output.  The primary deadline analysis conservatively retains
-the measured eager cost.  These results argue for measuring small-kernel
-launch behavior rather than assuming a compiler or custom kernel must win
+error is below $3\times10^{-7}$.  On the conformant layer-aware model,
+\emph{post-training} layer-table materialization cuts the matched eager path
+from 0.1013 to 0.0840\,ms; a custom two-kernel Triton path reaches
+0.0635\,ms, 35.8\% below its 0.0989-ms eager baseline.  Top-2/4/8 sets agree
+on all 32,520 pilot and 81,195 replication pairs (maximum differences
+$5.7\times10^{-6}$ and $6.7\times10^{-6}$).  Qwen-shaped materialization
+cuts 0.1016 to 0.0830\,ms.
+\texttt{torch.compile} is slower with already-float32 input
+(0.140\,ms versus 0.092\,ms eager).  In contrast, a static CUDA Graph costs
+0.0225\,ms to replay and 0.0326\,ms including the bfloat16 input conversion,
+versus 0.1065\,ms for the matched eager path, with identical output.  The
+primary deadline analysis conservatively retains the measured non-graph eager
+cost.  These results argue for measuring small-kernel launch behavior rather
+than assuming a compiler or custom kernel must win
 \cite{tillet2019triton}.
 
 \section{Limitations}
 Our end-to-end claims are deliberately narrow.  Trace replay assumes one DMA
-channel and uses measured p50 windows; only the expert-block overlap is
-executed with real streams.  We do not yet integrate staged components into a
-production scheduler, model PCIe contention from other requests, or measure
-batched serving throughput.  The cache simulator gives speculative weights a
-separate workspace and resets LRU state per prompt.  OLMoE is smaller than
-current frontier MoEs, and results must not be extrapolated to trillion-
-parameter models without measurement.  The disjoint replication, low-rank
-control, and several systems ablations were added after the preregistered pilot
-and are labeled exploratory in the machine-readable protocol.
+channel and measured p50 windows; only expert-block overlap uses real streams.
+We do not integrate with a production scheduler or measure cross-request PCIe
+contention or batched throughput.  The simulator gives speculative weights a
+separate workspace and resets LRU per prompt.  OLMoE is smaller than frontier
+MoEs, so results must not be extrapolated to trillion-parameter models without
+measurement.  The replication, low-rank control, and systems ablations are
+post-pilot and labeled exploratory in the machine-readable protocol.
 
 \section{Conclusion}
 An expert need not have one transfer deadline.  Moving gate/up weights first

@@ -51,8 +51,25 @@ def main() -> None:
     parser.add_argument("--layer-embedding-width", type=int, default=32)
     parser.add_argument("--warmup", type=int, default=200)
     parser.add_argument("--iterations", type=int, default=2000)
+    parser.add_argument(
+        "--model-dtype",
+        choices=["float32", "bfloat16", "float16"],
+        default="float32",
+    )
+    parser.add_argument(
+        "--source-dtype",
+        choices=["float32", "bfloat16", "float16"],
+        default="float32",
+    )
     args = parser.parse_args()
 
+    dtypes = {
+        "float32": torch.float32,
+        "bfloat16": torch.bfloat16,
+        "float16": torch.float16,
+    }
+    model_dtype = dtypes[args.model_dtype]
+    source_dtype = dtypes[args.source_dtype]
     model = LayerwiseExpertPredictor(
         args.hidden_size,
         args.num_layers,
@@ -60,10 +77,14 @@ def main() -> None:
         args.width,
         architecture="layer_aware",
         layer_embedding_width=args.layer_embedding_width,
-    ).cuda().eval()
-    hidden = torch.randn(1, args.hidden_size, device="cuda")
+    ).to(device="cuda", dtype=model_dtype).eval()
+    hidden = torch.randn(
+        1, args.hidden_size, device="cuda", dtype=source_dtype
+    )
     layer = torch.tensor([1], device="cuda")
-    static_hidden = torch.empty_like(hidden)
+    static_hidden = torch.empty(
+        1, args.hidden_size, device="cuda", dtype=model_dtype
+    )
     static_layer = torch.empty_like(layer)
 
     capture_stream = torch.cuda.Stream()
@@ -80,7 +101,7 @@ def main() -> None:
     with torch.cuda.graph(graph), torch.inference_mode():
         graph_output = model(static_hidden, static_layer)
 
-    eager = lambda: model(hidden, layer)
+    eager = lambda: model(hidden.to(model_dtype), layer)
 
     def graph_replay():
         graph.replay()
@@ -100,7 +121,8 @@ def main() -> None:
     report = {
         "captured_at_utc": utc_now(),
         "device": torch.cuda.get_device_name(),
-        "dtype": "float32",
+        "model_dtype": args.model_dtype,
+        "source_dtype": args.source_dtype,
         "batch_size": 1,
         "architecture": "layer_aware",
         "width": args.width,

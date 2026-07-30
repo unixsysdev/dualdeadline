@@ -39,9 +39,26 @@ def main() -> None:
     parser.add_argument("--layer-embedding-width", type=int, default=32)
     parser.add_argument("--warmup", type=int, default=100)
     parser.add_argument("--iterations", type=int, default=1000)
+    parser.add_argument(
+        "--model-dtype",
+        choices=["float32", "bfloat16", "float16"],
+        default="float32",
+    )
+    parser.add_argument(
+        "--source-dtype",
+        choices=["float32", "bfloat16", "float16"],
+        default="float32",
+    )
     args = parser.parse_args()
 
     device = torch.device("cuda")
+    dtypes = {
+        "float32": torch.float32,
+        "bfloat16": torch.bfloat16,
+        "float16": torch.float16,
+    }
+    model_dtype = dtypes[args.model_dtype]
+    source_dtype = dtypes[args.source_dtype]
     results = []
     for width in args.widths:
         model = LayerwiseExpertPredictor(
@@ -51,19 +68,25 @@ def main() -> None:
             width,
             architecture=args.architecture,
             layer_embedding_width=args.layer_embedding_width,
-        ).to(device).eval()
-        hidden = torch.randn(1, args.hidden_size, device=device)
+        ).to(device=device, dtype=model_dtype).eval()
+        hidden = torch.randn(
+            1, args.hidden_size, device=device, dtype=source_dtype
+        )
         layer = torch.tensor([1], device=device)
         values = []
+
+        def operation():
+            return model(hidden.to(model_dtype), layer)
+
         with torch.inference_mode():
             for _ in range(args.warmup):
-                model(hidden, layer)
+                operation()
             torch.cuda.synchronize()
             for _ in range(args.iterations):
                 start = torch.cuda.Event(enable_timing=True)
                 end = torch.cuda.Event(enable_timing=True)
                 start.record()
-                model(hidden, layer)
+                operation()
                 end.record()
                 end.synchronize()
                 values.append(start.elapsed_time(end))
@@ -81,7 +104,8 @@ def main() -> None:
         {
             "captured_at_utc": utc_now(),
             "device": torch.cuda.get_device_name(),
-            "dtype": "float32",
+            "model_dtype": args.model_dtype,
+            "source_dtype": args.source_dtype,
             "architecture": args.architecture,
             "layer_embedding_width": args.layer_embedding_width,
             "batch_size": 1,

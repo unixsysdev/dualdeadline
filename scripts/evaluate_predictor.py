@@ -91,6 +91,11 @@ def main() -> None:
     parser.add_argument("--batch-size", type=int, default=2048)
     parser.add_argument("--bootstrap-resamples", type=int, default=2000)
     parser.add_argument("--seed", type=int, default=260724787)
+    parser.add_argument(
+        "--inference-dtype",
+        choices=["float32", "bfloat16", "float16"],
+        default="float32",
+    )
     args = parser.parse_args()
 
     checkpoint = torch.load(args.checkpoint, map_location="cpu", weights_only=False)
@@ -115,7 +120,13 @@ def main() -> None:
     )
     model.load_state_dict(checkpoint["state_dict"])
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model.to(device).eval()
+    dtypes = {
+        "float32": torch.float32,
+        "bfloat16": torch.bfloat16,
+        "float16": torch.float16,
+    }
+    inference_dtype = dtypes[args.inference_dtype]
+    model.to(device=device, dtype=inference_dtype).eval()
 
     learned_parts = []
     with torch.inference_mode():
@@ -123,7 +134,7 @@ def main() -> None:
             stop = min(start + args.batch_size, len(test))
             learned_parts.append(
                 model(
-                    test.hidden[start:stop].to(device, torch.float32),
+                    test.hidden[start:stop].to(device, inference_dtype),
                     test.layer[start:stop].to(device),
                 ).cpu()
             )
@@ -152,6 +163,7 @@ def main() -> None:
         "test_prompts": len(test.prompt_ids),
         "trace_feature_key": feature_key,
         "target_horizon": target_horizon,
+        "inference_dtype": args.inference_dtype,
         "budgets": args.budgets,
         "policies": {},
         "paired_differences_learned_minus_baseline": {},

@@ -144,3 +144,22 @@ amendments:
       Rename the public-facing method from the internal codename SpecStream to
       DualDeadline after finding a pre-existing LLM package with the former
       name. No hypothesis, implementation, analysis, or result changes.
+  - at_utc: "2026-07-30T13:35:00Z"
+    before_results: false
+    classification: "runtime-latency implementation correction"
+    change: >-
+      The first isolated predictor benchmark supplied float32 input, whereas
+      the live router state is bfloat16. Add the device cast to the timed path,
+      increasing p50 predictor cost from 0.0922 to 0.1023 ms and reducing the
+      layer-1 ready count from five to four. Reselect the primary pilot and
+      replication checkpoints and rerun all primary simulators with this
+      corrected profile. Preserve the earlier outputs for provenance.
+  - at_utc: "2026-07-30T13:41:00Z"
+    before_results: false
+    classification: "exploratory kernel optimization"
+    change: >-
+      Add a custom two-kernel Triton implementation of the complete
+      layer-aware predictor, independent timing repeats, and exhaustive
+      top-2/4/8 set-equivalence checks on held-out traces. This optimization
+      does not replace the corrected measured-eager latency in the frozen
+      primary deadline analysis.

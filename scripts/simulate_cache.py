@@ -67,6 +67,11 @@ def main() -> None:
         default=[8, 16, 32, 64],
     )
     parser.add_argument("--bootstrap-resamples", type=int, default=2000)
+    parser.add_argument(
+        "--predictor-latency-ms",
+        type=float,
+        help="Override checkpoint latency for timing-sensitivity analysis.",
+    )
     parser.add_argument("--seed", type=int, default=260724787)
     args = parser.parse_args()
 
@@ -77,6 +82,8 @@ def main() -> None:
     predictor_latency_ms = checkpoint.get("deadline_profile", {}).get(
         "predictor_latency_ms", 0.0
     )
+    if args.predictor_latency_ms is not None:
+        predictor_latency_ms = args.predictor_latency_ms
     test = load_split(
         args.traces,
         "test",

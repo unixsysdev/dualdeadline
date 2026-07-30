@@ -207,6 +207,15 @@ def main() -> None:
         "deadline_weighted_loss": args.deadline_weighted_loss,
         "training_loss": args.loss,
     }
+    training_hyperparameters = {
+        "epochs": args.epochs,
+        "batch_size": args.batch_size,
+        "learning_rate": args.learning_rate,
+        "maximum_train_pairs_per_prompt": (
+            args.maximum_train_pairs_per_prompt
+        ),
+        "seed": args.seed,
+    }
     torch.save(
         {
             "format_version": 1,
@@ -216,6 +225,7 @@ def main() -> None:
             "best_validation_ready_recall": best_recall,
             "history": history,
             "seed": args.seed,
+            "training_hyperparameters": training_hyperparameters,
             "layer_weights": layer_weights.cpu(),
             "deadline_profile": deadline_profile,
         },
@@ -229,6 +239,7 @@ def main() -> None:
             "best_validation_ready_recall": best_recall,
             "history": history,
             "seed": args.seed,
+            "training_hyperparameters": training_hyperparameters,
             "training_pairs": len(train),
             "validation_pairs": len(validation),
             "deadline_profile": deadline_profile,

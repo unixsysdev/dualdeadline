@@ -54,7 +54,7 @@ def main() -> None:
     predictor = json.loads(
         (
             args.artifacts
-            / "results/olmoe_next_preregistered_e32_predictor.json"
+            / "results/olmoe_next_preregistered_e32_runtimecast_b4096_predictor.json"
         ).read_text()
     )
     budgets = predictor["budgets"]
@@ -99,7 +99,7 @@ def main() -> None:
     stall = json.loads(
         (
             args.artifacts
-            / "results/olmoe_next_preregistered_e32_stall.json"
+            / "results/olmoe_next_preregistered_e32_runtimecast_b4096_stall.json"
         ).read_text()
     )
     stall_budgets = sorted(
@@ -148,7 +148,7 @@ def main() -> None:
     cache = json.loads(
         (
             args.artifacts
-            / "results/olmoe_next_preregistered_e32_cache.json"
+            / "results/olmoe_next_preregistered_e32_runtimecast_cache.json"
         ).read_text()
     )
     capacities = [int(value) for value in cache["cache_experts_per_layer"]]

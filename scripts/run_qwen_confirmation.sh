@@ -57,6 +57,8 @@ python scripts/benchmark_predictor.py \
     --widths 256 \
     --architecture layer_aware \
     --layer-embedding-width 32 \
+    --model-dtype float32 \
+    --source-dtype bfloat16 \
     --warmup 200 \
     --iterations 2000
 

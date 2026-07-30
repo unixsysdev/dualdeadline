@@ -1,0 +1,41 @@
+{
+  "batch_size": 1,
+  "captured_at_utc": "2026-07-30T13:38:46.257041+00:00",
+  "correctness": {
+    "max_abs_error": 2.86102294921875e-06,
+    "root_mean_square_error": 7.523887575189292e-07,
+    "top8_set_agreement": false
+  },
+  "device": "NVIDIA H200",
+  "eager": {
+    "max_ms": 0.15955199301242828,
+    "mean_ms": 0.09957324806600809,
+    "min_ms": 0.09676799923181534,
+    "p50_ms": 0.09891200065612793,
+    "p95_ms": 0.10384000092744827,
+    "samples": 2000
+  },
+  "fused_triton": {
+    "max_ms": 0.1380160003900528,
+    "mean_ms": 0.06395496004633605,
+    "min_ms": 0.0594559982419014,
+    "p50_ms": 0.06351999938488007,
+    "p95_ms": 0.06812799721956253,
+    "samples": 2000
+  },
+  "held_out_equivalence": {
+    "max_abs_logit_difference": 5.7220458984375e-06,
+    "pairs": 32520,
+    "topk_set_agreement": {
+      "2": 1.0,
+      "4": 1.0,
+      "8": 1.0
+    }
+  },
+  "hidden_size": 2048,
+  "model_dtype": "float32",
+  "num_experts": 64,
+  "parameters": 553536,
+  "source_dtype": "bfloat16",
+  "width": 256
+}

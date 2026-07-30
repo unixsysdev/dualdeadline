@@ -21,11 +21,13 @@ On OLMoE-1B-7B-Instruct and one PCIe Gen5 x16 NVIDIA H200:
   candidates, versus 26.74% for training-set popularity;
 - a prompt-disjoint 300-prompt replication reaches 46.63%;
 - cacheless trace replay at equal speculative bytes estimates 1.223 ms exposed
-  stall for monolithic prefetch and 1.100 ms for component staging;
+  stall for monolithic prefetch and 1.106 ms for component staging;
 - a real pinned-memory, two-CUDA-stream benchmark reduces an eight-expert block
   from 2.193 ms to 1.939 ms with zero numerical error; and
 - the measured benefit persists across all 16 layers and under prompt-cold
-  per-layer LRU capacities from 8 to 64 experts.
+  per-layer LRU capacities from 8 to 64 experts; and
+- a custom two-kernel Triton predictor cuts p50 from 0.0989 ms to 0.0635 ms
+  while preserving top-2/4/8 expert sets on all 32,520 held-out pairs.
 
 These are held-out trace results, trace-driven simulations, and isolated
 microbenchmarks—not an end-to-end serving-speedup claim. Qwen3.6-35B-A3B is

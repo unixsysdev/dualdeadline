@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import platform
 import subprocess
@@ -17,6 +18,21 @@ def command(*args: str) -> str:
     return subprocess.check_output(args, text=True, stderr=subprocess.STDOUT).strip()
 
 
+def source_hashes(root: Path) -> dict[str, str]:
+    paths = [
+        *root.glob("scripts/*"),
+        *root.glob("src/**/*.py"),
+        root / "requirements.txt",
+        root / "pyproject.toml",
+        root / "protocol" / "pilot.yaml",
+    ]
+    return {
+        str(path.relative_to(root)): hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in sorted(set(paths))
+        if path.is_file()
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", type=Path, required=True)
@@ -30,6 +46,10 @@ def main() -> None:
     report = {
         "captured_at_utc": utc_now(),
         "git_revision": git_revision(args.root),
+        "git_status_short": command(
+            "git", "-C", str(args.root), "status", "--short"
+        ),
+        "source_sha256": source_hashes(args.root),
         "platform": platform.platform(),
         "python": platform.python_version(),
         "torch": torch.__version__,
@@ -61,4 +81,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

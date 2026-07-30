@@ -1,0 +1,24 @@
+{
+  "architecture": "layer_aware",
+  "batch_size": 1,
+  "captured_at_utc": "2026-07-30T13:20:26.354649+00:00",
+  "device": "NVIDIA H200",
+  "hidden_size": 2048,
+  "layer_embedding_width": 32,
+  "model_dtype": "bfloat16",
+  "num_experts": 64,
+  "num_layers": 16,
+  "results": [
+    {
+      "max_ms": 0.14496000111103058,
+      "mean_ms": 0.10449673595651984,
+      "min_ms": 0.10115200281143188,
+      "p50_ms": 0.10387200117111206,
+      "p95_ms": 0.1088000014424324,
+      "parameters": 553536,
+      "samples": 2000,
+      "width": 256
+    }
+  ],
+  "source_dtype": "bfloat16"
+}
