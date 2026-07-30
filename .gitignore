@@ -13,4 +13,13 @@ artifacts/traces/
 tmp/
 output/pdf/*
 !output/pdf/main.pdf
+paper/*.aux
+paper/*.bbl
+paper/*.blg
+paper/*.fdb_latexmk
+paper/*.fls
+paper/*.log
+paper/*.out
+paper/*.pdf
+paper/*.synctex.gz
 artifacts/results/*smoke*.json
