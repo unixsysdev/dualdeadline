@@ -1,6 +1,7 @@
 # DualDeadline
 
 [![Build paper](https://github.com/unixsysdev/dualdeadline/actions/workflows/paper.yml/badge.svg)](https://github.com/unixsysdev/dualdeadline/actions/workflows/paper.yml)
+[![Paper on ResearchGate](https://img.shields.io/badge/paper-ResearchGate-00CCBB)](https://www.researchgate.net/publication/411009097_DualDeadline_Component-Staged_Expert_Prefetching_for_Exact_Offloaded_Mixture-of-Experts_Inference)
 
 DualDeadline is a reproducible study of component-staged expert prefetching for
 exact, offloaded mixture-of-experts inference. It asks whether a gated expert
