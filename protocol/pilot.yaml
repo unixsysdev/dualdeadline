@@ -1,6 +1,6 @@
 study:
   name: "SpecStream H200 pilot"
-  frozen_at_utc: "2026-07-30T12:00:00Z"
+  frozen_at_utc: "2026-07-30T11:30:05Z"
   hypothesis: >-
     At equal speculative host-to-device byte budgets, a learned next-layer
     predictor optimized for deadline-weighted stall utility lowers held-out
@@ -22,7 +22,7 @@ hardware:
 
 model:
   id: "Qwen/Qwen3.6-35B-A3B"
-  revision: "resolve and record before tracing"
+  revision: "995ad96eacd98c81ed38be0c5b274b04031597b0"
   dtype: "bfloat16"
   expected_layers: 40
   expected_experts: 256
@@ -82,4 +82,3 @@ claims:
     - "end-to-end serving speedup"
     - "production throughput improvement"
     - "Kimi K3 generalization"
-
