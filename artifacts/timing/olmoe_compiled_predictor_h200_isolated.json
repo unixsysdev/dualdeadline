@@ -1,0 +1,30 @@
+{
+  "architecture": "layer_aware",
+  "batch_size": 1,
+  "captured_at_utc": "2026-07-30T12:48:31.130624+00:00",
+  "compile_seconds": 1.7194497508462518,
+  "compiled": {
+    "max_ms": 0.1783359944820404,
+    "mean_ms": 0.13771975992619992,
+    "min_ms": 0.13148799538612366,
+    "p50_ms": 0.1369599997997284,
+    "p95_ms": 0.14422400295734406,
+    "samples": 2000
+  },
+  "correctness": {
+    "max_abs_error": 2.086162567138672e-07,
+    "root_mean_square_error": 8.54129922345237e-08
+  },
+  "device": "NVIDIA H200",
+  "dtype": "float32",
+  "eager": {
+    "max_ms": 0.33052799105644226,
+    "mean_ms": 0.07877331192046404,
+    "min_ms": 0.07612799853086472,
+    "p50_ms": 0.07814399898052216,
+    "p95_ms": 0.08303999900817871,
+    "samples": 2000
+  },
+  "parameters": 548928,
+  "width": 256
+}

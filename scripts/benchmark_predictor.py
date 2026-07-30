@@ -36,6 +36,7 @@ def main() -> None:
         choices=["layer_aware", "low_rank"],
         default="layer_aware",
     )
+    parser.add_argument("--layer-embedding-width", type=int, default=32)
     parser.add_argument("--warmup", type=int, default=100)
     parser.add_argument("--iterations", type=int, default=1000)
     args = parser.parse_args()
@@ -49,6 +50,7 @@ def main() -> None:
             args.num_experts,
             width,
             architecture=args.architecture,
+            layer_embedding_width=args.layer_embedding_width,
         ).to(device).eval()
         hidden = torch.randn(1, args.hidden_size, device=device)
         layer = torch.tensor([1], device=device)
@@ -81,6 +83,7 @@ def main() -> None:
             "device": torch.cuda.get_device_name(),
             "dtype": "float32",
             "architecture": args.architecture,
+            "layer_embedding_width": args.layer_embedding_width,
             "batch_size": 1,
             "hidden_size": args.hidden_size,
             "num_layers": args.num_layers,

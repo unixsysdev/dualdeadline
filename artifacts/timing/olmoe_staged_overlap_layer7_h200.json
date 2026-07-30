@@ -1,0 +1,80 @@
+{
+  "captured_at_utc": "2026-07-30T12:51:15.697745+00:00",
+  "correctness": {
+    "monolithic_copy_then_compute": {
+      "max_abs_error": 0.0,
+      "root_mean_square_error": 0.0
+    },
+    "prefetched_gate_overlap": {
+      "max_abs_error": 0.0,
+      "root_mean_square_error": 0.0
+    },
+    "resident_compute": {
+      "max_abs_error": 0.0,
+      "root_mean_square_error": 0.0
+    },
+    "staged_overlap": {
+      "max_abs_error": 0.0,
+      "root_mean_square_error": 0.0
+    },
+    "staged_serial": {
+      "max_abs_error": 0.0,
+      "root_mean_square_error": 0.0
+    }
+  },
+  "device": "NVIDIA H200",
+  "dtype": "torch.bfloat16",
+  "experts": 8,
+  "exposed_over_resident_p50_ms": {
+    "monolithic_copy_then_compute": 1.8016319274902344,
+    "prefetched_gate_overlap": 0.29363197088241577,
+    "resident_compute": 0.0,
+    "staged_overlap": 1.54966402053833,
+    "staged_serial": 1.8093760013580322
+  },
+  "layer": 7,
+  "model": "models/OLMoE-1B-7B-0924-Instruct",
+  "pinned_host_memory": true,
+  "timings": {
+    "monolithic_copy_then_compute": {
+      "max_ms": 2.212127923965454,
+      "mean_ms": 2.193361855983734,
+      "min_ms": 2.1842880249023438,
+      "p50_ms": 2.1918399333953857,
+      "p95_ms": 2.206144094467163,
+      "samples": 500
+    },
+    "prefetched_gate_overlap": {
+      "max_ms": 0.7138239741325378,
+      "mean_ms": 0.6839924463033676,
+      "min_ms": 0.6783679723739624,
+      "p50_ms": 0.6838399767875671,
+      "p95_ms": 0.6880959868431091,
+      "samples": 500
+    },
+    "resident_compute": {
+      "max_ms": 1.972607970237732,
+      "mean_ms": 0.40102764809131625,
+      "min_ms": 0.3848319947719574,
+      "p50_ms": 0.39020800590515137,
+      "p95_ms": 0.3969919979572296,
+      "samples": 500
+    },
+    "staged_overlap": {
+      "max_ms": 2.695647954940796,
+      "mean_ms": 1.9443767054080963,
+      "min_ms": 1.9321919679641724,
+      "p50_ms": 1.9398720264434814,
+      "p95_ms": 1.9541759490966797,
+      "samples": 500
+    },
+    "staged_serial": {
+      "max_ms": 2.2215681076049805,
+      "mean_ms": 2.2014963898658753,
+      "min_ms": 2.1865921020507812,
+      "p50_ms": 2.1995840072631836,
+      "p95_ms": 2.2148799896240234,
+      "samples": 500
+    }
+  }
+}

@@ -67,6 +67,7 @@ def main() -> None:
         choices=["layer_aware", "low_rank"],
         default="layer_aware",
     )
+    parser.add_argument("--layer-embedding-width", type=int, default=32)
     parser.add_argument("--loss", choices=["bce", "kl"], default="bce")
     parser.add_argument("--learning-rate", type=float, default=2e-3)
     parser.add_argument("--maximum-train-pairs-per-prompt", type=int, default=4096)
@@ -111,6 +112,7 @@ def main() -> None:
         num_experts,
         args.width,
         architecture=args.architecture,
+        layer_embedding_width=args.layer_embedding_width,
     ).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.learning_rate)
     positive_weight = torch.tensor(

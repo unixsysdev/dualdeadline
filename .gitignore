@@ -10,4 +10,7 @@ artifacts/traces/
 *.safetensors
 *.pt
 *.pth
-
+tmp/
+output/pdf/*
+!output/pdf/main.pdf
+artifacts/results/*smoke*.json

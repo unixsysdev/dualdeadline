@@ -119,6 +119,9 @@ def main() -> None:
         metadata["num_experts"],
         metadata["width"],
         architecture=metadata.get("architecture", "layer_aware"),
+        layer_embedding_width=metadata.get(
+            "layer_embedding_width", metadata["width"]
+        ),
     )
     predictor.load_state_dict(checkpoint["state_dict"])
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

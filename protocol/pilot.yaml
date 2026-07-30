@@ -119,3 +119,13 @@ amendments:
       with no prompt IDs reused from the preregistered pilot and a new corpus
       seed. Preserve prompt-level 60/20/20 splitting, the frozen model, trace
       semantics, predictor hyperparameters, timing inputs, and bootstrap unit.
+  - at_utc: "2026-07-30T13:18:00Z"
+    before_results: false
+    classification: "implementation correction and transparent provenance"
+    change: >-
+      An audit found that the first layer-aware implementation used a
+      width-256 layer embedding instead of the prespecified width 32. Retain
+      that checkpoint only as an exploratory direct-embedding control and
+      rerun the primary pilot, disjoint replication, latency measurement, and
+      simulators with a 32-dimensional embedding projected to width 256. The
+      corrected checkpoint is the primary result reported in the manuscript.

@@ -109,6 +109,9 @@ def main() -> None:
         metadata["num_experts"],
         metadata["width"],
         architecture=metadata.get("architecture", "layer_aware"),
+        layer_embedding_width=metadata.get(
+            "layer_embedding_width", metadata["width"]
+        ),
     )
     model.load_state_dict(checkpoint["state_dict"])
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -162,8 +165,22 @@ def main() -> None:
             values = prompt_summary(pair_recall, test.prompt_index)
             prompt_values[(policy_name, budget)] = values
             stats = interval(values, rng, args.bootstrap_resamples)
+            stats["by_source"] = {}
+            prompt_sources = np.asarray(test.prompt_sources)
+            for source in sorted(set(test.prompt_sources)):
+                stats["by_source"][source] = interval(
+                    values[prompt_sources == source],
+                    rng,
+                    args.bootstrap_resamples,
+                )
             report["policies"][policy_name][str(budget)] = stats
-            rows.append({"policy": policy_name, "budget": budget, **stats})
+            rows.append(
+                {
+                    "policy": policy_name,
+                    "budget": budget,
+                    **{key: value for key, value in stats.items() if key != "by_source"},
+                }
+            )
 
     for baseline in ("random", "training_popularity", "previous_layer_routes"):
         report["paired_differences_learned_minus_baseline"][baseline] = {}
@@ -172,14 +189,25 @@ def main() -> None:
                 prompt_values[("learned", budget)]
                 - prompt_values[(baseline, budget)]
             )
+            stats = interval(difference, rng, args.bootstrap_resamples)
+            stats["by_source"] = {}
+            prompt_sources = np.asarray(test.prompt_sources)
+            for source in sorted(set(test.prompt_sources)):
+                stats["by_source"][source] = interval(
+                    difference[prompt_sources == source],
+                    rng,
+                    args.bootstrap_resamples,
+                )
             report["paired_differences_learned_minus_baseline"][baseline][
                 str(budget)
-            ] = interval(difference, rng, args.bootstrap_resamples)
+            ] = stats
 
     atomic_json(args.output, report)
     csv_path = args.output.with_suffix(".csv")
     with csv_path.open("w", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=rows[0].keys())
+        writer = csv.DictWriter(
+            handle, fieldnames=rows[0].keys(), lineterminator="\n"
+        )
         writer.writeheader()
         writer.writerows(rows)
     print(json.dumps(report, indent=2))

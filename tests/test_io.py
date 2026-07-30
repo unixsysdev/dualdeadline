@@ -3,6 +3,7 @@ from pathlib import Path
 import torch
 
 from specstream.io import atomic_json
+from specstream.predictor import LayerwiseExpertPredictor
 from specstream.traces import load_split
 
 
@@ -25,6 +26,7 @@ def test_load_split_aligns_anchor_features_with_future_routes(
     torch.save(
         {
             "id": "prompt",
+            "source": "synthetic",
             "split": "train",
             "router_features": features,
             "route_ids": routes,
@@ -45,3 +47,14 @@ def test_load_split_aligns_anchor_features_with_future_routes(
     assert torch.equal(data.hidden, features[:, :2].reshape(4, 4))
     assert torch.equal(data.targets, routes[:, 1:].reshape(4, 2))
     assert torch.equal(data.layer, torch.tensor([1, 2, 1, 2]))
+
+
+def test_layer_embedding_width_is_backward_compatible() -> None:
+    legacy = LayerwiseExpertPredictor(16, 3, 4, width=8)
+    preregistered = LayerwiseExpertPredictor(
+        16, 3, 4, width=8, layer_embedding_width=2
+    )
+
+    assert legacy.layer_embedding.weight.shape == (3, 8)
+    assert preregistered.layer_embedding.weight.shape == (3, 2)
+    assert preregistered.metadata()["layer_embedding_width"] == 2

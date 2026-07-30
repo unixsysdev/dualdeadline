@@ -1,0 +1,119 @@
+{
+  "captured_at_utc": "2026-07-30T12:54:37.633865+00:00",
+  "correctness": {
+    "monolithic_copy_then_compute": {
+      "max_abs_error": 0.0,
+      "root_mean_square_error": 0.0
+    },
+    "partial_prefetched_gate_2": {
+      "max_abs_error": 0.0,
+      "root_mean_square_error": 0.0
+    },
+    "partial_prefetched_gate_4": {
+      "max_abs_error": 0.0,
+      "root_mean_square_error": 0.0
+    },
+    "partial_prefetched_gate_6": {
+      "max_abs_error": 0.0,
+      "root_mean_square_error": 0.0
+    },
+    "prefetched_gate_overlap": {
+      "max_abs_error": 0.0,
+      "root_mean_square_error": 0.0
+    },
+    "resident_compute": {
+      "max_abs_error": 0.0,
+      "root_mean_square_error": 0.0
+    },
+    "staged_overlap": {
+      "max_abs_error": 0.0,
+      "root_mean_square_error": 0.0
+    },
+    "staged_serial": {
+      "max_abs_error": 0.0,
+      "root_mean_square_error": 0.0
+    }
+  },
+  "device": "NVIDIA H200",
+  "dtype": "torch.bfloat16",
+  "experts": 8,
+  "exposed_over_resident_p50_ms": {
+    "monolithic_copy_then_compute": 1.8029760122299194,
+    "partial_prefetched_gate_2": 1.2437119483947754,
+    "partial_prefetched_gate_4": 0.9312000274658203,
+    "partial_prefetched_gate_6": 0.6150079965591431,
+    "prefetched_gate_overlap": 0.3012160062789917,
+    "resident_compute": 0.0,
+    "staged_overlap": 1.5561280250549316,
+    "staged_serial": 1.814911961555481
+  },
+  "layer": 14,
+  "model": "models/OLMoE-1B-7B-0924-Instruct",
+  "pinned_host_memory": true,
+  "timings": {
+    "monolithic_copy_then_compute": {
+      "max_ms": 2.6588480472564697,
+      "mean_ms": 2.2056936013698576,
+      "min_ms": 2.178015947341919,
+      "p50_ms": 2.185760021209717,
+      "p95_ms": 2.250976085662842,
+      "samples": 200
+    },
+    "partial_prefetched_gate_2": {
+      "max_ms": 1.6492480039596558,
+      "mean_ms": 1.6291923213005066,
+      "min_ms": 1.6204160451889038,
+      "p50_ms": 1.6264959573745728,
+      "p95_ms": 1.640928030014038,
+      "samples": 200
+    },
+    "partial_prefetched_gate_4": {
+      "max_ms": 1.3290560245513916,
+      "mean_ms": 1.3155112022161484,
+      "min_ms": 1.3067519664764404,
+      "p50_ms": 1.3139840364456177,
+      "p95_ms": 1.3271360397338867,
+      "samples": 200
+    },
+    "partial_prefetched_gate_6": {
+      "max_ms": 1.004863977432251,
+      "mean_ms": 0.9972854381799698,
+      "min_ms": 0.990015983581543,
+      "p50_ms": 0.9977920055389404,
+      "p95_ms": 1.0009599924087524,
+      "samples": 200
+    },
+    "prefetched_gate_overlap": {
+      "max_ms": 0.6996480226516724,
+      "mean_ms": 0.6848916801810264,
+      "min_ms": 0.6779199838638306,
+      "p50_ms": 0.6840000152587891,
+      "p95_ms": 0.6952000260353088,
+      "samples": 200
+    },
+    "resident_compute": {
+      "max_ms": 0.40515199303627014,
+      "mean_ms": 0.3846286398172378,
+      "min_ms": 0.3779520094394684,
+      "p50_ms": 0.38278400897979736,
+      "p95_ms": 0.398144006729126,
+      "samples": 200
+    },
+    "staged_overlap": {
+      "max_ms": 1.9560960531234741,
+      "mean_ms": 1.940293280482292,
+      "min_ms": 1.9303679466247559,
+      "p50_ms": 1.938912034034729,
+      "p95_ms": 1.9521280527114868,
+      "samples": 200
+    },
+    "staged_serial": {
+      "max_ms": 2.21779203414917,
+      "mean_ms": 2.1988222396373747,
+      "min_ms": 2.184607982635498,
+      "p50_ms": 2.1976959705352783,
+      "p95_ms": 2.212768077850342,
+      "samples": 200
+    }
+  }
+}

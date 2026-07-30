@@ -14,6 +14,7 @@ class TraceDataset:
     teacher_logits: torch.Tensor | None
     prompt_index: torch.Tensor
     prompt_ids: list[str]
+    prompt_sources: list[str]
     num_layers: int
     num_experts: int
 
@@ -36,6 +37,7 @@ def load_split(
     teacher_parts = []
     prompt_parts = []
     prompt_ids = []
+    prompt_sources = []
     observed_num_layers = 0
     observed_num_experts = 0
 
@@ -82,6 +84,7 @@ def load_split(
             layer = layer[selection]
         prompt_number = len(prompt_ids)
         prompt_ids.append(trace["id"])
+        prompt_sources.append(trace["source"])
         hidden_parts.append(hidden)
         target_parts.append(targets)
         if teachers is not None:
@@ -100,6 +103,7 @@ def load_split(
         ),
         prompt_index=torch.cat(prompt_parts),
         prompt_ids=prompt_ids,
+        prompt_sources=prompt_sources,
         num_layers=observed_num_layers,
         num_experts=observed_num_experts,
     )
