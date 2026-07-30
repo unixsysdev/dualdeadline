@@ -1,0 +1,14 @@
+{
+  "captured_at_utc": "2026-07-30T11:57:51.863910+00:00",
+  "counts": {
+    "test": 24,
+    "train": 72,
+    "validation": 24
+  },
+  "seed": 260724787,
+  "sha256": "58bfc9e2a89dde2fc31f819ad25be3f1c52e41912b7cf29a0cb12ff76d897946",
+  "sources": {
+    "gsm8k": 80,
+    "humaneval": 40
+  }
+}

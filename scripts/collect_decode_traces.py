@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import time
 from pathlib import Path
 
 import torch
@@ -28,6 +29,12 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=260724787)
     parser.add_argument("--limit", type=int)
     parser.add_argument("--resume", action="store_true")
+    parser.add_argument(
+        "--empty-cache-every",
+        type=int,
+        default=0,
+        help="Call torch.cuda.empty_cache every N completed prompts (0 disables it).",
+    )
     args = parser.parse_args()
 
     seed_everything(args.seed)
@@ -84,6 +91,8 @@ def main() -> None:
         handles.append(layer.mlp.gate.register_forward_hook(router_hook(layer_index)))
 
     completed = 0
+    total_decode_steps = 0
+    collection_started = time.perf_counter()
     try:
         with torch.inference_mode():
             for position, row in enumerate(rows, 1):
@@ -106,6 +115,7 @@ def main() -> None:
                 )
                 prompt_length = inputs["input_ids"].shape[-1]
                 inputs = {key: value.to("cuda") for key, value in inputs.items()}
+                prompt_started = time.perf_counter()
                 generated = model.generate(
                     **inputs,
                     max_new_tokens=args.new_tokens,
@@ -127,34 +137,51 @@ def main() -> None:
                     [torch.stack(values[:steps]) for values in route_scores], dim=1
                 ).to("cpu", torch.float16)
                 generated_ids = generated[0, prompt_length : prompt_length + steps].to("cpu")
-                torch.save(
-                    {
-                        "format_version": 2,
-                        "captured_at_utc": utc_now(),
-                        "id": row["id"],
-                        "source": row["source"],
-                        "split": row["split"],
-                        "model_type": config.model_type,
-                        "num_layers": len(layers),
-                        "num_experts": config.text_config.num_experts
-                        if hasattr(config, "text_config")
-                        else config.num_experts,
-                        "prompt_tokens": prompt_length,
-                        "generated_ids": generated_ids,
-                        "features": features,
-                        "route_ids": experts,
-                        "route_scores": scores,
-                    },
-                    output_path,
-                )
+                payload = {
+                    "format_version": 2,
+                    "captured_at_utc": utc_now(),
+                    "id": row["id"],
+                    "source": row["source"],
+                    "split": row["split"],
+                    "model_type": config.model_type,
+                    "num_layers": len(layers),
+                    "num_experts": config.text_config.num_experts
+                    if hasattr(config, "text_config")
+                    else config.num_experts,
+                    "prompt_tokens": prompt_length,
+                    "generated_ids": generated_ids,
+                    "features": features,
+                    "route_ids": experts,
+                    "route_scores": scores,
+                }
+                temporary_path = output_path.with_suffix(".pt.tmp")
+                torch.save(payload, temporary_path)
+                temporary_path.replace(output_path)
                 completed += 1
+                total_decode_steps += steps
+                prompt_seconds = time.perf_counter() - prompt_started
+                elapsed_seconds = time.perf_counter() - collection_started
                 print(
-                    f"[{position}/{len(rows)}] {row['id']} {row['split']} "
-                    f"prompt={prompt_length} decode_steps={steps}",
+                    {
+                        "position": position,
+                        "records": len(rows),
+                        "id": row["id"],
+                        "split": row["split"],
+                        "prompt_tokens": prompt_length,
+                        "decode_steps": steps,
+                        "prompt_seconds": round(prompt_seconds, 3),
+                        "aggregate_decode_tokens_per_second": round(
+                            total_decode_steps / elapsed_seconds, 3
+                        ),
+                    },
                     flush=True,
                 )
                 del generated, generated_ids, features, experts, scores
-                torch.cuda.empty_cache()
+                if (
+                    args.empty_cache_every > 0
+                    and completed % args.empty_cache_every == 0
+                ):
+                    torch.cuda.empty_cache()
     finally:
         for handle in handles:
             handle.remove()
@@ -175,6 +202,8 @@ def main() -> None:
             "requested_new_tokens": args.new_tokens,
             "newly_completed": completed,
             "requested_records": len(rows),
+            "total_decode_steps": total_decode_steps,
+            "collection_seconds": time.perf_counter() - collection_started,
             "trace_semantics": "single-token autoregressive decode forwards only",
         },
     )

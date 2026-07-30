@@ -1,0 +1,23 @@
+{
+  "artifact": "allenai/OLMoE-1B-7B-0924-Instruct",
+  "hf_revision": "7f1c97f440f06ce36705e4f2b843edb5925f4498",
+  "verified_at_vm_local_time": "2026-07-30T19:55:43+08:00",
+  "files": [
+    {
+      "name": "model-00001-of-00003.safetensors",
+      "bytes": 4997744872,
+      "sha256": "6c79ac0487c3f23e8ee3d38752197d1e4a1a39d6c1438ec5fd7862874bb19321"
+    },
+    {
+      "name": "model-00002-of-00003.safetensors",
+      "bytes": 4997235176,
+      "sha256": "b58ca7a9f28f35d76b56b0ec40fc46c356fd84ccf078083b251a3ad6a2da9a35"
+    },
+    {
+      "name": "model-00003-of-00003.safetensors",
+      "bytes": 3843741912,
+      "sha256": "e93653ed509223e63eabae6f72ac8ea5a41115c5c7785574b9b2068ca0961c45"
+    }
+  ],
+  "verification": "All sizes and SHA-256 values matched the official Hugging Face LFS metadata."
+}
