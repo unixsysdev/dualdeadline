@@ -99,3 +99,14 @@ amendments:
       can be validated while Qwen downloads. Qwen remains the primary model;
       every result must identify the model and no pooling across architectures
       is allowed.
+  - at_utc: "2026-07-30T12:34:00Z"
+    before_results: false
+    classification: "exploratory controls; not part of the primary confirmatory claim"
+    change: >-
+      After the first OLMoE held-out predictor and simulator results, add full
+      detached router logits to a new trace pass so a paper-style shared
+      low-rank KL adapter can be evaluated fairly. Also add predictor-width
+      and same-layer pre-attention horizon controls. Keep the original
+      next-layer uniform-BCE versus deadline-weighted-BCE comparison as the
+      preregistered predictor analysis, and label all added controls
+      exploratory.

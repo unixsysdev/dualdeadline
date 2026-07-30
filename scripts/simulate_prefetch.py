@@ -39,7 +39,7 @@ def popular_scores(directory: Path, layers: int, experts: int) -> torch.Tensor:
 
 
 def prior_layer_scores(
-    directory: Path, popular: torch.Tensor
+    directory: Path, popular: torch.Tensor, target_horizon: int
 ) -> torch.Tensor:
     parts = []
     for path in sorted(directory.glob("*.pt")):
@@ -48,12 +48,16 @@ def prior_layer_scores(
             continue
         routes = trace["route_ids"].long()
         steps, layers, top_k = routes.shape
-        scores = popular[None].expand(steps, -1, -1).clone()
-        previous = torch.roll(routes, 1, dims=1)
+        target_layers = range(target_horizon, layers)
+        scores = popular[None, target_horizon:].expand(steps, -1, -1).clone()
         bonus = 100.0 + torch.arange(top_k, 0, -1, dtype=torch.float32)
-        for layer in range(1, layers):
-            scores[:, layer].scatter_(1, previous[:, layer], bonus[None])
-        parts.append(scores.reshape(steps * layers, -1))
+        for output_layer, layer in enumerate(target_layers):
+            if layer == 0:
+                continue
+            scores[:, output_layer].scatter_(
+                1, routes[:, layer - 1], bonus[None].expand(steps, -1)
+            )
+        parts.append(scores.reshape(steps * len(target_layers), -1))
     return torch.cat(parts)
 
 
@@ -96,14 +100,25 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=260724787)
     args = parser.parse_args()
 
-    test = load_split(args.traces, "test")
     checkpoint = torch.load(args.checkpoint, map_location="cpu", weights_only=False)
     metadata = checkpoint["model_metadata"]
+    predictor_latency_ms = checkpoint.get("deadline_profile", {}).get(
+        "predictor_latency_ms", 0.0
+    )
+    feature_key = metadata.get("trace_feature_key", "features")
+    target_horizon = metadata.get("target_horizon", 0)
+    test = load_split(
+        args.traces,
+        "test",
+        feature_key=feature_key,
+        target_horizon=target_horizon,
+    )
     predictor = LayerwiseExpertPredictor(
         metadata["hidden_size"],
         metadata["num_layers"],
         metadata["num_experts"],
         metadata["width"],
+        architecture=metadata.get("architecture", "layer_aware"),
     )
     predictor.load_state_dict(checkpoint["state_dict"])
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -127,7 +142,9 @@ def main() -> None:
     policies = {
         "random": torch.rand(learned.shape, generator=generator),
         "training_popularity": popular_by_layer[test.layer],
-        "previous_layer_routes": prior_layer_scores(args.traces, popular_by_layer),
+        "previous_layer_routes": prior_layer_scores(
+            args.traces, popular_by_layer, target_horizon
+        ),
         "learned": learned,
         "oracle": torch.zeros_like(learned).scatter_(1, test.targets, 1.0),
     }
@@ -155,12 +172,21 @@ def main() -> None:
     pre_moe_ms = torch.tensor(
         [layer["pre_moe"]["p50_ms"] for layer in timing["layers"]]
     )
+    moe_and_residual_ms = torch.tensor(
+        [layer["moe_and_residual"]["p50_ms"] for layer in timing["layers"]]
+    )
+    total_ms = torch.tensor(
+        [layer["total"]["p50_ms"] for layer in timing["layers"]]
+    )
     gate_compute_ms = timing["expert_gate_up_compute"]["p50_ms"]
     top_k = test.targets.shape[-1]
     rng = np.random.default_rng(args.seed)
     report = {
         "captured_at_utc": utc_now(),
         "semantics": "trace-driven simulation; not an end-to-end serving measurement",
+        "trace_feature_key": feature_key,
+        "target_horizon": target_horizon,
+        "predictor_latency_ms": predictor_latency_ms,
         "assumptions": {
             "dma_channels": 1,
             "persistent_cache": False,
@@ -187,7 +213,22 @@ def main() -> None:
     }
 
     actual = test.targets
-    slack = pre_moe_ms[test.layer]
+    slack_by_target_layer = torch.zeros(metadata["num_layers"])
+    for target_layer in range(target_horizon, metadata["num_layers"]):
+        anchor_layer = target_layer - target_horizon
+        if feature_key == "router_features":
+            window = moe_and_residual_ms[anchor_layer].clone()
+            first_complete_layer = anchor_layer + 1
+        else:
+            window = torch.tensor(0.0)
+            first_complete_layer = anchor_layer
+        if first_complete_layer < target_layer:
+            window += total_ms[first_complete_layer:target_layer].sum()
+        window += pre_moe_ms[target_layer]
+        window = torch.clamp(window - predictor_latency_ms, min=0.0)
+        slack_by_target_layer[target_layer] = window
+    slack = slack_by_target_layer[test.layer]
+    report["prefetch_window_ms_by_target_layer"] = slack_by_target_layer.tolist()
     for policy_name, scores in policies.items():
         report["results"][policy_name] = {}
         ranking = scores.argsort(dim=-1, descending=True)
@@ -202,7 +243,7 @@ def main() -> None:
                 monolithic_deadline,
                 torch.full_like(monolithic_deadline, monolithic_candidates),
             )
-            monolithic_hits = torch.zeros(len(test))
+            monolithic_hits = torch.zeros(len(test), dtype=torch.long)
             for ready_count in torch.unique(monolithic_ready):
                 mask = monolithic_ready == ready_count
                 if ready_count:
@@ -220,7 +261,7 @@ def main() -> None:
                 staged_deadline,
                 torch.full_like(staged_deadline, staged_candidates),
             )
-            staged_hits = torch.zeros(len(test))
+            staged_hits = torch.zeros(len(test), dtype=torch.long)
             for ready_count in torch.unique(staged_ready):
                 mask = staged_ready == ready_count
                 if ready_count:

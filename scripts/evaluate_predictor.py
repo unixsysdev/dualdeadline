@@ -30,7 +30,11 @@ def popularity(directory: Path, layers: int, experts: int) -> torch.Tensor:
     return torch.log1p(counts).float()
 
 
-def previous_routes(directory: Path, popularity_scores: torch.Tensor) -> torch.Tensor:
+def previous_routes(
+    directory: Path,
+    popularity_scores: torch.Tensor,
+    target_horizon: int,
+) -> torch.Tensor:
     score_parts = []
     for path in sorted(directory.glob("*.pt")):
         trace = torch.load(path, map_location="cpu", weights_only=False)
@@ -38,18 +42,23 @@ def previous_routes(directory: Path, popularity_scores: torch.Tensor) -> torch.T
             continue
         routes = trace["route_ids"].long()
         steps, layers, _ = routes.shape
-        scores = popularity_scores[None].expand(steps, -1, -1).clone()
-        previous = torch.roll(routes, shifts=1, dims=1)
-        for layer in range(1, layers):
-            scores[:, layer].scatter_(
+        target_layers = range(target_horizon, layers)
+        scores = popularity_scores[None, target_horizon:].expand(
+            steps, -1, -1
+        ).clone()
+        for output_layer, layer in enumerate(target_layers):
+            if layer == 0:
+                continue
+            previous = routes[:, layer - 1]
+            scores[:, output_layer].scatter_(
                 1,
-                previous[:, layer],
+                previous,
                 100.0
                 + torch.arange(previous.shape[-1], 0, -1, dtype=torch.float32)[
                     None
-                ],
+                ].expand(steps, -1),
             )
-        score_parts.append(scores.reshape(steps * layers, -1))
+        score_parts.append(scores.reshape(steps * len(target_layers), -1))
     return torch.cat(score_parts)
 
 
@@ -84,14 +93,22 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=260724787)
     args = parser.parse_args()
 
-    test = load_split(args.traces, "test")
     checkpoint = torch.load(args.checkpoint, map_location="cpu", weights_only=False)
     metadata = checkpoint["model_metadata"]
+    feature_key = metadata.get("trace_feature_key", "features")
+    target_horizon = metadata.get("target_horizon", 0)
+    test = load_split(
+        args.traces,
+        "test",
+        feature_key=feature_key,
+        target_horizon=target_horizon,
+    )
     model = LayerwiseExpertPredictor(
         metadata["hidden_size"],
         metadata["num_layers"],
         metadata["num_experts"],
         metadata["width"],
+        architecture=metadata.get("architecture", "layer_aware"),
     )
     model.load_state_dict(checkpoint["state_dict"])
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -112,7 +129,7 @@ def main() -> None:
         args.traces, metadata["num_layers"], metadata["num_experts"]
     )
     popular = popular_by_layer[test.layer]
-    previous = previous_routes(args.traces, popular_by_layer)
+    previous = previous_routes(args.traces, popular_by_layer, target_horizon)
     generator = torch.Generator().manual_seed(args.seed)
     random_scores = torch.rand(learned.shape, generator=generator)
     oracle = torch.zeros_like(learned).scatter_(1, test.targets, 1.0)
@@ -130,6 +147,8 @@ def main() -> None:
         "checkpoint": str(args.checkpoint),
         "test_pairs": len(test),
         "test_prompts": len(test.prompt_ids),
+        "trace_feature_key": feature_key,
+        "target_horizon": target_horizon,
         "budgets": args.budgets,
         "policies": {},
         "paired_differences_learned_minus_baseline": {},
@@ -168,4 +187,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

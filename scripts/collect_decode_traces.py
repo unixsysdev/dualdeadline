@@ -65,6 +65,8 @@ def main() -> None:
     if not all(hasattr(layer.mlp.gate, "forward") for layer in layers):
         raise TypeError(f"{config.model_type} does not expose the expected MoE routers")
     layer_inputs: list[list[torch.Tensor]] = [[] for _ in layers]
+    router_inputs: list[list[torch.Tensor]] = [[] for _ in layers]
+    router_logits: list[list[torch.Tensor]] = [[] for _ in layers]
     route_ids: list[list[torch.Tensor]] = [[] for _ in layers]
     route_scores: list[list[torch.Tensor]] = [[] for _ in layers]
     handles = []
@@ -78,9 +80,11 @@ def main() -> None:
         return hook
 
     def router_hook(layer_index: int):
-        def hook(_module, _inputs, output):
+        def hook(_module, inputs, output):
             logits, scores, selected = output
             if logits.shape[0] == 1:
+                router_inputs[layer_index].append(inputs[0][0].detach())
+                router_logits[layer_index].append(logits[0].detach())
                 route_ids[layer_index].append(selected[0].detach())
                 route_scores[layer_index].append(scores[0].detach())
 
@@ -99,7 +103,13 @@ def main() -> None:
                 output_path = args.output_dir / f"{row['id']}.pt"
                 if args.resume and output_path.exists():
                     continue
-                for values in (*layer_inputs, *route_ids, *route_scores):
+                for values in (
+                    *layer_inputs,
+                    *router_inputs,
+                    *router_logits,
+                    *route_ids,
+                    *route_scores,
+                ):
                     values.clear()
 
                 text = processor.apply_chat_template(
@@ -124,12 +134,22 @@ def main() -> None:
                     pad_token_id=tokenizer.eos_token_id,
                 )
 
-                steps = min(len(values) for values in layer_inputs)
+                steps = min(
+                    min(len(values) for values in layer_inputs),
+                    min(len(values) for values in router_inputs),
+                    min(len(values) for values in router_logits),
+                )
                 if steps == 0:
                     raise RuntimeError("No single-token decode forwards were observed")
                 features = torch.stack(
                     [torch.stack(values[:steps]) for values in layer_inputs], dim=1
                 ).to("cpu", torch.bfloat16)
+                router_features = torch.stack(
+                    [torch.stack(values[:steps]) for values in router_inputs], dim=1
+                ).to("cpu", torch.bfloat16)
+                teacher_logits = torch.stack(
+                    [torch.stack(values[:steps]) for values in router_logits], dim=1
+                ).to("cpu", torch.float16)
                 experts = torch.stack(
                     [torch.stack(values[:steps]) for values in route_ids], dim=1
                 ).to("cpu", torch.uint8)
@@ -138,7 +158,7 @@ def main() -> None:
                 ).to("cpu", torch.float16)
                 generated_ids = generated[0, prompt_length : prompt_length + steps].to("cpu")
                 payload = {
-                    "format_version": 2,
+                    "format_version": 4,
                     "captured_at_utc": utc_now(),
                     "id": row["id"],
                     "source": row["source"],
@@ -151,6 +171,8 @@ def main() -> None:
                     "prompt_tokens": prompt_length,
                     "generated_ids": generated_ids,
                     "features": features,
+                    "router_features": router_features,
+                    "router_logits": teacher_logits,
                     "route_ids": experts,
                     "route_scores": scores,
                 }
@@ -176,7 +198,15 @@ def main() -> None:
                     },
                     flush=True,
                 )
-                del generated, generated_ids, features, experts, scores
+                del (
+                    generated,
+                    generated_ids,
+                    features,
+                    router_features,
+                    teacher_logits,
+                    experts,
+                    scores,
+                )
                 if (
                     args.empty_cache_every > 0
                     and completed % args.empty_cache_every == 0
@@ -204,7 +234,14 @@ def main() -> None:
             "requested_records": len(rows),
             "total_decode_steps": total_decode_steps,
             "collection_seconds": time.perf_counter() - collection_started,
-            "trace_semantics": "single-token autoregressive decode forwards only",
+            "trace_semantics": {
+                "scope": "single-token autoregressive decode forwards only",
+                "features": "hidden state at transformer-layer entry",
+                "router_features": "native MoE router input",
+                "router_logits": "full detached native-router logits",
+                "route_ids": "native router top-k expert IDs",
+                "route_scores": "native router selected-expert scores",
+            },
         },
     )
 
