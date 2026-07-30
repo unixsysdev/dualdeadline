@@ -135,3 +135,5 @@ python scripts/simulate_cache.py \
     --cache-experts-per-layer 8 16 32 64 \
     --bootstrap-resamples 2000 \
     --seed 260724787
+
+bash scripts/run_qwen_kernel_postcheck.sh

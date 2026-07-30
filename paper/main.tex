@@ -7,6 +7,13 @@
 \usepackage{siunitx}
 \usepackage{url}
 
+\hypersetup{
+  pdftitle={DualDeadline: Component-Staged Expert Prefetching for Exact Offloaded Mixture-of-Experts Inference},
+  pdfauthor={Marcel Butucea},
+  pdfsubject={Post-hoc component-staged expert prefetching for exact MoE inference},
+  pdfkeywords={mixture of experts, expert offloading, prefetching, CUDA, Triton}
+}
+
 \newcommand{\method}{DualDeadline}
 \newcommand{\ms}{\,\mathrm{ms}}
 \setlist{nosep,leftmargin=*}
@@ -16,7 +23,9 @@
 
 \title{\vspace{-1.5em}\method: Component-Staged Expert Prefetching\\
 for Exact Offloaded Mixture-of-Experts Inference}
-\author{Anonymous Authors}
+\author{\textbf{Marcel Butucea}\\[-0.15em]
+\small Head of Research, Sinorom Applied AI Lab\\[-0.15em]
+\small\texttt{marcel@sinorom.ro}}
 \date{}
 
 \begin{document}
@@ -43,8 +52,11 @@ $1.223\ms$ exposed stall for monolithic prefetch and $1.106\ms$ for
 component staging.  A real CUDA-stream microbenchmark with eight OLMoE
 experts reduces block latency from $2.193\ms$ to $1.939\ms$ without numerical
 change.  Benefits persist under prompt-cold LRU caches from 8 to 64 experts
-per layer.  We distinguish measured microbenchmarks from trace-driven
-simulation and do not claim end-to-end serving speedup.
+per layer.  On Qwen3.6-35B-A3B, learned R@4 is 31.28\% versus 13.40\%
+popularity; cacheless staged replay reduces exposed stall from 0.666 to
+0.505\,ms, and real overlap checks save 16.2--28.8\% with exact outputs.
+We distinguish measured microbenchmarks from trace-driven simulation and do
+not claim end-to-end serving speedup.
 \end{abstract}
 
 \section{Introduction}
@@ -152,9 +164,11 @@ future work.
 \paragraph{Model and hardware.}
 OLMoE-1B-7B-Instruct has 7B total and about 1B active parameters
 \cite{muennighoff2024olmoe}.  It contains 16 MoE layers, 64 experts per layer,
-and activates 8 experts per token.  Experiments use bfloat16 on one NVIDIA H200
-with 141\,GB HBM attached over PCIe Gen5 x16.  We pin host tensors and use
-PyTorch 2.9.1, CUDA 12.8, Transformers 5.14.1, and Triton 3.5.1.
+and activates 8 experts per token.  The prespecified scale confirmation uses
+Qwen3.6-35B-A3B (40 MoE layers, 256 experts, top-8 routing)
+\cite{qwen2026qwen36}.  Experiments use bfloat16 on one NVIDIA H200 with
+141\,GB HBM attached over PCIe Gen5 x16.  We pin host tensors and use PyTorch
+2.9.1, CUDA 12.8, Transformers 5.14.1, and Triton 3.5.1.
 
 \paragraph{Data and traces.}
 The preregistered pilot contains 80 GSM8K and 40 HumanEval prompts, split
@@ -164,7 +178,8 @@ After the pilot result, we add a clearly labeled exploratory replication with
 200 GSM8K and 100 HumanEval prompts whose IDs are disjoint from the pilot.
 Its 60-prompt test set contains 81,195 pairs.  Native routes, full router logits,
 router inputs, and layer-start states are detached and stored; prompts, never
-tokens, are the split and bootstrap unit.
+tokens, are the split and bootstrap unit.  Qwen reuses the frozen 120-prompt
+pilot split, producing 11,400 decode steps and 88,920 held-out target pairs.
 
 \paragraph{Policies and statistics.}
 We compare random scores, training-set popularity, previous-layer native
@@ -323,25 +338,60 @@ changes pilot staged stall from 1.106\,ms eager to 1.100\,ms Triton and
 analysis conservatively retains eager cost.  Small-kernel launch behavior must
 therefore be measured rather than assumed \cite{tillet2019triton}.
 
+\subsection{Prespecified Qwen confirmation}
+\begin{table}[h]
+\centering
+\small
+\setlength{\tabcolsep}{3pt}
+\caption{Cross-model confirmation.  Latencies are ms; real-overlap entries
+are relative reductions.}
+\label{tab:qwen}
+\begin{tabular}{lrr}
+\toprule
+Measure & OLMoE & Qwen3.6\\
+\midrule
+Held-out target pairs & 32,520 & 88,920\\
+R@4, learned / pop. (\%) & 45.23 / 26.74 & 31.28 / 13.40\\
+Stall, mono. / staged & 1.223 / 1.106 & 0.666 / 0.505\\
+Real saving (\%) & 11.6 median & 16.2--28.8\\
+Predictor, eager / Triton & 0.0989 / 0.0635 & 0.0968 / 0.0654\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Qwen learned-minus-popularity R@4 is +17.87 points (95\% CI
+[+16.88,+18.81]).  At byte budget four, staged-minus-monolithic stall is
+-0.161\,ms ([-0.162,-0.160]).  Real pinned-memory checks on layers 0, 20,
+and 39 save 0.403, 0.317, and 0.193\,ms, respectively, with zero numerical
+error.  Prompt-cold cache capacity 8 gives 0.420/0.276\,ms
+monolithic/staged; capacity 64 gives 0.144/0.087\,ms.  On the actual trained
+checkpoint, layer-table materialization reduces 0.1029 to 0.0847\,ms with
+identical logits.  Custom Triton reduces 0.0968 to 0.0654\,ms and preserves
+top-2/4/8 sets on all 88,920 pairs (maximum logit difference
+$7.6\times10^{-6}$).
+
 \section{Limitations}
 Our end-to-end claims are deliberately narrow.  Trace replay assumes one DMA
 channel and measured p50 windows; only expert-block overlap uses real streams.
 We do not integrate with a production scheduler or measure cross-request PCIe
 contention or batched throughput.  The simulator gives speculative weights a
-separate workspace and resets LRU per prompt.  OLMoE is smaller than frontier
-MoEs, so results must not be extrapolated to trillion-parameter models without
-measurement.  The replication, low-rank control, and systems ablations are
-post-pilot and labeled exploratory in the machine-readable protocol.
+separate workspace and resets LRU per prompt.  Qwen uses the same pilot split
+without a disjoint replication and the PyTorch fallback for its optional
+fast-path kernels.  Neither model supports extrapolation to trillion-parameter
+MoEs without measurement.  The replication, low-rank control, and systems
+ablations are post-pilot and labeled exploratory in the machine-readable
+protocol.
 
 \section{Conclusion}
 An expert need not have one transfer deadline.  Moving gate/up weights first
 and authoritative down weights during gate/up computation preserves exact
 routing while reducing speculative bytes and exposed stall.  On OLMoE and an
 H200, the effect survives held-out prompts, a larger disjoint replication,
-cache sensitivity, and direct CUDA-stream measurement.  The study also shows
-why ready recall, predictor latency, and real overlap must be reported
-together.  A production offloading integration and validation on larger MoEs
-are the necessary next steps.
+cache sensitivity, and direct CUDA-stream measurement; Qwen confirms the
+effect on a larger, 256-expert architecture.  The study also shows why ready
+recall, predictor latency, and real overlap must be reported together.  A
+production offloading integration and trillion-scale validation are the
+necessary next steps.
 
 \begingroup
 \small

@@ -9,7 +9,7 @@ unchanged native router reveals the true top-k experts, their down projections
 move to the GPU concurrently with gate/up computation. Prediction is advisory:
 misses are fetched on demand, so routing and model outputs remain exact.
 
-The current paper draft is [output/pdf/main.pdf](output/pdf/main.pdf), and the
+The current paper is [output/pdf/main.pdf](output/pdf/main.pdf), and the
 machine-readable preregistration and amendments are in
 [protocol/pilot.yaml](protocol/pilot.yaml).
 
@@ -29,9 +29,21 @@ On OLMoE-1B-7B-Instruct and one PCIe Gen5 x16 NVIDIA H200:
 - a custom two-kernel Triton predictor cuts p50 from 0.0989 ms to 0.0635 ms
   while preserving top-2/4/8 expert sets on all 32,520 held-out pairs.
 
+The prespecified Qwen3.6-35B-A3B confirmation uses 88,920 held-out target
+pairs:
+
+- learned R@4 is 31.28%, versus 13.40% for training-set popularity;
+- cacheless replay at budget four estimates 0.666 ms monolithic stall and
+  0.505 ms component-staged stall;
+- real CUDA-stream checks on layers 0, 20, and 39 reduce block latency by
+  28.8%, 24.1%, and 16.2%, respectively, with zero numerical error; and
+- the custom Triton predictor cuts p50 from 0.0968 ms to 0.0654 ms while
+  preserving held-out top-2/4/8 sets.
+
 These are held-out trace results, trace-driven simulations, and isolated
-microbenchmarks—not an end-to-end serving-speedup claim. Qwen3.6-35B-A3B is
-the preregistered larger-model confirmation.
+microbenchmarks—not an end-to-end serving-speedup claim. The Qwen model used
+the Transformers/PyTorch fallback consistently because its optional fast path
+was unavailable in this environment.
 
 ## Reproduce
 
@@ -61,8 +73,11 @@ python scripts/simulate_cache.py --help
 ```
 
 `scripts/run_qwen_confirmation.sh` is the unattended H200 pipeline used by the
-study. It assumes the VM layout `/root/dataDisk/specstream`; individual Python
-commands are path-independent.
+study, including the checkpoint-level kernel-equivalence postcheck. It assumes
+the VM layout `/root/dataDisk/specstream`; individual Python commands are
+path-independent. `scripts/merge_cache_results.py` validates and merges
+capacity-sharded cache jobs; this parallel execution is semantically equivalent
+to the serial multi-capacity command in the canonical pipeline.
 
 ## Repository map
 

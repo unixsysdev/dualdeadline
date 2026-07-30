@@ -164,3 +164,16 @@ amendments:
       deadline-sensitivity replay at the measured eager, Triton, and CUDA
       Graph costs. These optimizations do not replace the corrected
       measured-eager latency in the frozen primary deadline analysis.
+  - at_utc: "2026-07-30T14:40:08Z"
+    before_results: false
+    classification: "prespecified scale confirmation and execution provenance"
+    change: >-
+      Complete the frozen 120-prompt protocol on Qwen3.6-35B-A3B without
+      pooling its results with OLMoE. The model's optional fast path was
+      unavailable, so every Qwen model measurement used the same
+      Transformers/PyTorch fallback. To fit the rental window, evaluate the
+      four prespecified cache capacities in independent processes and merge
+      them only after validating trace, budget, timing, and semantic
+      invariants; this is equivalent to the canonical serial multi-capacity
+      invocation. Add held-out checkpoint-level equivalence checks for the
+      materialized and custom Triton predictor paths.
