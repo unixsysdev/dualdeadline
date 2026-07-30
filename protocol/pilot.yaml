@@ -160,6 +160,7 @@ amendments:
     change: >-
       Add a custom two-kernel Triton implementation of the complete
       layer-aware predictor, independent timing repeats, and exhaustive
-      top-2/4/8 set-equivalence checks on held-out traces. This optimization
-      does not replace the corrected measured-eager latency in the frozen
-      primary deadline analysis.
+      top-2/4/8 set-equivalence checks on held-out traces. Add a post-hoc
+      deadline-sensitivity replay at the measured eager, Triton, and CUDA
+      Graph costs. These optimizations do not replace the corrected
+      measured-eager latency in the frozen primary deadline analysis.
