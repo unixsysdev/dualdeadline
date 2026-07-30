@@ -1,0 +1,56 @@
+name: Build paper
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "paper/**"
+      - ".github/workflows/paper.yml"
+  pull_request:
+    paths:
+      - "paper/**"
+      - ".github/workflows/paper.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: paper-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Compile LaTeX
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Compile manuscript
+        uses: xu-cheng/latex-action@v4
+        with:
+          root_file: main.tex
+          working_directory: paper
+          texlive_version: 2026
+
+      - name: Verify PDF and LaTeX log
+        shell: bash
+        run: |
+          test -s paper/main.pdf
+          problems="$(grep -E 'LaTeX Warning: (There were undefined references|Citation .* undefined)|Overfull \\hbox' paper/main.log || true)"
+          if [[ -n "${problems}" ]]; then
+            printf '%s\n' "${problems}"
+            exit 1
+          fi
+
+      - name: Upload compiled paper
+        uses: actions/upload-artifact@v7
+        with:
+          name: dualdeadline-paper
+          path: paper/main.pdf
+          if-no-files-found: error
+          retention-days: 30

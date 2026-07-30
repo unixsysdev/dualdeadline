@@ -1,5 +1,7 @@
 # DualDeadline
 
+[![Build paper](https://github.com/unixsysdev/dualdeadline/actions/workflows/paper.yml/badge.svg)](https://github.com/unixsysdev/dualdeadline/actions/workflows/paper.yml)
+
 DualDeadline is a reproducible study of component-staged expert prefetching for
 exact, offloaded mixture-of-experts inference. It asks whether a gated expert
 must have one transfer deadline.
@@ -12,6 +14,8 @@ misses are fetched on demand, so routing and model outputs remain exact.
 The current paper is [output/pdf/main.pdf](output/pdf/main.pdf), and the
 machine-readable preregistration and amendments are in
 [protocol/pilot.yaml](protocol/pilot.yaml).
+GitHub Actions recompiles the manuscript for paper-related pushes and pull
+requests and retains the resulting `dualdeadline-paper` artifact for 30 days.
 
 ## Current evidence
 
