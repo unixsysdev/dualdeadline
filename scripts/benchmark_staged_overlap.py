@@ -32,6 +32,12 @@ def main() -> None:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--layer", type=int, default=0)
     parser.add_argument("--experts", type=int, default=8)
+    parser.add_argument(
+        "--tokens",
+        type=int,
+        default=1,
+        help="Token rows sharing the same transferred expert weights.",
+    )
     parser.add_argument("--warmup", type=int, default=50)
     parser.add_argument("--iterations", type=int, default=500)
     args = parser.parse_args()
@@ -108,7 +114,10 @@ def main() -> None:
     gate_key = "gate_up" if fused_gate_up else "gate"
     hidden_size = host[gate_key][0].shape[1]
     hidden = torch.randn(
-        1, hidden_size, device="cuda", dtype=host[gate_key][0].dtype
+        args.tokens,
+        hidden_size,
+        device="cuda",
+        dtype=host[gate_key][0].dtype,
     )
     copy_stream = torch.cuda.Stream()
     compute_stream = torch.cuda.Stream()
@@ -280,6 +289,8 @@ def main() -> None:
         "prefetched_gate_overlap": prefetched_gate_overlap,
     }
     for prefetched in (2, 4, 6):
+        if prefetched >= args.experts:
+            continue
         strategies[
             f"partial_prefetched_gate_{prefetched}"
         ] = make_partial_prefetched_overlap(prefetched)
@@ -323,6 +334,7 @@ def main() -> None:
             "model": str(args.model),
             "layer": args.layer,
             "experts": args.experts,
+            "tokens": args.tokens,
             "expert_checkpoint_layout": (
                 "fused_gate_up_3d" if fused_gate_up else "separate_per_expert"
             ),

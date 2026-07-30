@@ -129,3 +129,18 @@ amendments:
       rerun the primary pilot, disjoint replication, latency measurement, and
       simulators with a 32-dimensional embedding projected to width 256. The
       corrected checkpoint is the primary result reported in the manuscript.
+  - at_utc: "2026-07-30T13:22:00Z"
+    before_results: false
+    classification: "exploratory systems robustness"
+    change: >-
+      Add all-layer and routed-top-k overlap repeats, a p95-copy timing
+      sensitivity replay, and an isolated CUDA Graph predictor benchmark.
+      These do not replace the frozen primary p50-window, measured-eager
+      analysis and are reported as post-hoc systems evidence.
+  - at_utc: "2026-07-30T13:27:00Z"
+    before_results: false
+    classification: "nomenclature only"
+    change: >-
+      Rename the public-facing method from the internal codename SpecStream to
+      DualDeadline after finding a pre-existing LLM package with the former
+      name. No hypothesis, implementation, analysis, or result changes.

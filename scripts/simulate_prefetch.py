@@ -15,10 +15,15 @@ from specstream.predictor import LayerwiseExpertPredictor
 from specstream.traces import load_split
 
 
-def transfer_fit(path: Path) -> tuple[float, float]:
+def transfer_fit(
+    path: Path,
+    statistic: str = "mean_ms",
+) -> tuple[float, float]:
     report = json.loads(path.read_text())
     sizes = np.asarray([row["size_bytes"] for row in report["results"]], dtype=float)
-    times = np.asarray([row["mean_ms"] for row in report["results"]], dtype=float)
+    times = np.asarray(
+        [row[statistic] for row in report["results"]], dtype=float
+    )
     slope, intercept = np.polyfit(sizes, times, 1)
     return max(float(intercept), 0.0), max(float(slope), 0.0)
 
@@ -97,6 +102,16 @@ def main() -> None:
         default=[0, 2, 4, 8, 12, 16],
     )
     parser.add_argument("--bootstrap-resamples", type=int, default=2000)
+    parser.add_argument(
+        "--transfer-statistic",
+        choices=["mean_ms", "p50_ms", "p95_ms"],
+        default="mean_ms",
+    )
+    parser.add_argument(
+        "--model-statistic",
+        choices=["mean_ms", "p50_ms", "p95_ms"],
+        default="p50_ms",
+    )
     parser.add_argument("--seed", type=int, default=260724787)
     args = parser.parse_args()
 
@@ -163,7 +178,9 @@ def main() -> None:
     )
     down_bytes = text.hidden_size * expert_intermediate_size * dtype_bytes
     full_expert_bytes = gate_up_bytes + down_bytes
-    latency_ms, ms_per_byte = transfer_fit(args.transfer_timing)
+    latency_ms, ms_per_byte = transfer_fit(
+        args.transfer_timing, args.transfer_statistic
+    )
 
     def component_time(size: int) -> float:
         return latency_ms + ms_per_byte * size
@@ -173,15 +190,23 @@ def main() -> None:
     full_transfer_ms = component_time(full_expert_bytes)
     timing = json.loads(args.model_timing.read_text())
     pre_moe_ms = torch.tensor(
-        [layer["pre_moe"]["p50_ms"] for layer in timing["layers"]]
+        [
+            layer["pre_moe"][args.model_statistic]
+            for layer in timing["layers"]
+        ]
     )
     moe_and_residual_ms = torch.tensor(
-        [layer["moe_and_residual"]["p50_ms"] for layer in timing["layers"]]
+        [
+            layer["moe_and_residual"][args.model_statistic]
+            for layer in timing["layers"]
+        ]
     )
     total_ms = torch.tensor(
-        [layer["total"]["p50_ms"] for layer in timing["layers"]]
+        [layer["total"][args.model_statistic] for layer in timing["layers"]]
     )
-    gate_compute_ms = timing["expert_gate_up_compute"]["p50_ms"]
+    gate_compute_ms = timing["expert_gate_up_compute"][
+        args.model_statistic
+    ]
     top_k = test.targets.shape[-1]
     rng = np.random.default_rng(args.seed)
     report = {
@@ -193,7 +218,12 @@ def main() -> None:
         "assumptions": {
             "dma_channels": 1,
             "persistent_cache": False,
-            "prefetch_window": "measured layer-start to router invocation p50",
+            "transfer_statistic": args.transfer_statistic,
+            "model_statistic": args.model_statistic,
+            "prefetch_window": (
+                "measured layer-start to router invocation using "
+                f"{args.model_statistic}"
+            ),
             "staged_policy": (
                 "predict gate/up; after the authoritative router fires, transfer "
                 "actual down projections during gate/up compute"

@@ -7,7 +7,7 @@
 \usepackage{siunitx}
 \usepackage{url}
 
-\newcommand{\method}{SpecStream}
+\newcommand{\method}{DualDeadline}
 \newcommand{\ms}{\,\mathrm{ms}}
 \setlist{nosep,leftmargin=*}
 \setlength{\textfloatsep}{7pt plus 2pt minus 2pt}
@@ -82,8 +82,8 @@ Our contributions are:
   \item a preregistered held-out study, a prompt-disjoint replication, cache
   sensitivity, and a real-stream overlap microbenchmark on an H200; and
   \item bounded forward-pass optimization experiments, including algebraic
-  low-rank materialization, \texttt{torch.compile}, and a custom Triton GEMV,
-  with negative results reported.
+  low-rank materialization, CUDA Graphs, \texttt{torch.compile}, and a custom
+  Triton GEMV, with negative results reported.
 \end{itemize}
 
 \section{Background and Related Work}
@@ -239,6 +239,8 @@ to resident execution.  Repeating the full-transfer comparison independently
 on all 16 layers gives a median 2.192\,ms for monolithic loading and
 1.938\,ms for staging, a median saving of 0.254\,ms (11.6\%); the
 layerwise saving ranges from 0.247 to 0.390\,ms, with zero numerical error.
+At layer 0, varying routed top-$k$ from 1, 2, 4, to 8 gives absolute staging
+savings of 0.063, 0.061, 0.122, and 0.254\,ms, respectively.
 
 \subsection{Trace-driven stall and cache sensitivity}
 \begin{figure}[t]
@@ -254,7 +256,8 @@ At four full-expert byte equivalents, monolithic replay exposes
 is -0.123\,ms (95\% CI [-0.125,-0.122]).  The disjoint replication gives
 1.207\,ms and 1.081\,ms, a -0.126\,ms difference
 ([-0.1265,-0.1252]).  Larger byte budgets do not help because the measured
-deadline, rather than capacity, is binding.
+deadline, rather than capacity, is binding.  Replacing the mean-copy fit with
+a p95-copy fit preserves a -0.112\,ms staging advantage.
 
 \begin{figure}[t]
 \centering
@@ -292,17 +295,22 @@ Shared low-rank, BCE & 540,672 & 35.53\\
 
 Deadline-weighted BCE is effectively tied with and slightly below uniform BCE
 (44.65\% versus 44.67\% R@4 in the direct-embedding control), so we retain the
-simpler loss.  Three training seeds yield 44.71\% mean R@4 with 0.04-point
-sample standard deviation.
+simpler loss.  Across the primary conformant checkpoint and two additional
+training seeds, pilot R@4 is 45.69\% with a 0.40-point sample standard
+deviation; the corresponding disjoint-replication result is 46.92\% with a
+0.25-point standard deviation.
 
 For the linear low-rank control, the two matrices can be multiplied once after
 training.  This exact materialization reduces batch-1 p50 from 0.0388\,ms to
 0.0212\,ms.  A tuned custom Triton GEMV reaches 0.0273\,ms and is faster than
 the factorized adapter but slower than PyTorch's materialized GEMV; maximum
-error is below $3\times10^{-7}$.  On the direct-embedding layer-aware model,
-\texttt{torch.compile} is slower in an isolated run (0.137\,ms versus
-0.078\,ms eager).  These results argue for measuring small-kernel launch
-behavior rather than assuming a compiler or custom kernel must win
+error is below $3\times10^{-7}$.  On the primary conformant layer-aware model,
+\texttt{torch.compile} is slower in an isolated run (0.140\,ms versus
+0.092\,ms eager).  In contrast, a static CUDA Graph costs 0.0220\,ms to replay
+and 0.0325\,ms including device-side input copies, versus 0.0938\,ms eager,
+with identical output.  The primary deadline analysis conservatively retains
+the measured eager cost.  These results argue for measuring small-kernel
+launch behavior rather than assuming a compiler or custom kernel must win
 \cite{tillet2019triton}.
 
 \section{Limitations}

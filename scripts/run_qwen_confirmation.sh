@@ -30,7 +30,7 @@ done
 
 python scripts/audit.py \
     --model "${model}" \
-    --output artifacts/audits/qwen36_h200.json
+    --output artifacts/audit/qwen36_h200.json
 
 python scripts/benchmark_model.py \
     --model "${model}" \
